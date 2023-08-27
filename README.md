@@ -1,6 +1,18 @@
-# DELPHI
-#### Video Demo: https://www.loom.com/share/90a6ba6625874590a9c01c6c5747af5b?sid=447992b3-76a2-4dd7-991c-d8e8cf990210
-#### Description:
+Summary:
+--------
+
+My Flask app integrates with HubSpot for OAuth authentication. It allows users to log in using HubSpot, fetches and stores OAuth tokens, and automatically refreshes these tokens before they expire using token refresh jobs handled by APScheduler. Logging is in place to keep track of app activities, and I manage database migrations using Flask-Migrate. All app configurations, including HubSpot details, are stored in a separate configuration file. Sensitive data is stored as environment variables.
+
+Design choices:
+---------------
+
+One of the core features of my app is its integration with HubSpot for authentication without relying on Flask-Session or any other login (I debated on this for sometime). This not only provides a seamless login experience but also ensures secure access to HubSpot's resources. The token refresh mechanism was an absolute necessity; it ensures that the user remains authenticated by automatically refreshing the token before it expires. If the user wants to logout, the route handles not only the Token removal, but also the refresh job removal.
+
+Safety:
+-------
+
+To prevent CSRF attacks, a state parameter generated during the AuthRequest and HubSpot auth url construction is handled and then retrieved during the callback to see if it matches the user's one.
+
 Here's the breakdown of my Flask app:
 
 `__init__.py`:
@@ -87,20 +99,3 @@ Here's the breakdown of my Flask app:
 -   I've created the Flask app using the `create_app` function.
 -   The app runs on port 5000.
 -   I've defined CLI commands for database initialization, migration, and upgrade.
-
-* * * * *
-
-Summary:
---------
-
-My Flask app integrates with HubSpot for OAuth authentication. It allows users to log in using HubSpot, fetches and stores OAuth tokens, and automatically refreshes these tokens before they expire using token refresh jobs handled by APScheduler. Logging is in place to keep track of app activities, and I manage database migrations using Flask-Migrate. All app configurations, including HubSpot details, are stored in a separate configuration file. Sensitive data is stored as environment variables.
-
-Design choices:
----------------
-
-One of the core features of my app is its integration with HubSpot for authentication without relying on Flask-Session or any other login (I debated on this for sometime). This not only provides a seamless login experience but also ensures secure access to HubSpot's resources. The token refresh mechanism was an absolute necessity; it ensures that the user remains authenticated by automatically refreshing the token before it expires. If the user wants to logout, the route handles not only the Token removal, but also the refresh job removal.
-
-Safety:
--------
-
-To prevent CSRF attacks, a state parameter generated during the AuthRequest and HubSpot auth url construction is handled and then retrieved during the callback to see if it matches the user's one.
