@@ -46,8 +46,10 @@ def login():
 @main.route('/oauth-callback/')
 def oauth_callback():
     current_app.logger.info('Accessing oauth-callback route...')
+    current_app.logger.info(f"Full callback URL: {request.url}")
     try:
         fetched_state = request.args.get('state')
+        current_app.logger.info(f"Received state: {fetched_state}")
         stored_state = AuthRequest.get_by_state_uuid(fetched_state)
 
         # State comparison check (no need to check vs fetched_state, given prior initialization)
@@ -58,6 +60,7 @@ def oauth_callback():
 
         current_app.logger.info('State match')
         code = request.args.get('code')
+        current_app.logger.info(f"Received code: {code}")
 
         get_token_from_code(code, stored_state.user_id)
 

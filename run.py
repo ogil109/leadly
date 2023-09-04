@@ -6,7 +6,7 @@ app = create_app(Config)
 
 if __name__ == '__main__':
     app.logger.info('Starting the application...')
-    app.run(port=5000)
+    app.run(port=5001)
 
 @app.cli.command("db_init")
 def init_db():

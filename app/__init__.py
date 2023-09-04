@@ -14,6 +14,11 @@ login_manager = LoginManager()
 scheduler = APScheduler()
 migrate = Migrate()
 
+def create_tables(app):
+    from .models import TokenRefreshJob, AuthRequest
+    with app.app_context():
+        db.create_all()
+
 
 def create_app(config_class):
     app = Flask(__name__)
@@ -24,6 +29,9 @@ def create_app(config_class):
     login_manager.init_app(app)
     scheduler.init_app(app)
     migrate.init_app(app, db)
+
+    # Create db tables if empty
+    create_tables(app)
 
     # Attach the scheduler to the app
     app.scheduler = scheduler
