@@ -3,7 +3,7 @@ import requests
 from flask import current_app, abort
 from flask_login import login_user
 from .models import Token, TokenRefreshJob, AuthRequest
-from . import db
+from .. import db
 
 
 # Function to create HubSpot auth URL

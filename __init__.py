@@ -15,7 +15,7 @@ scheduler = APScheduler()
 migrate = Migrate()
 
 def create_tables(app):
-    from .models import TokenRefreshJob, AuthRequest
+    from .oauth.models import TokenRefreshJob, AuthRequest, Token
     with app.app_context():
         db.create_all()
 
@@ -37,7 +37,7 @@ def create_app(config_class):
     app.scheduler = scheduler
 
     # Register the Blueprint
-    from app.views import main
+    from .oauth.views import main
     app.register_blueprint(main)
 
     # Logging setup
@@ -55,7 +55,7 @@ def create_app(config_class):
 
     @login_manager.user_loader
     def load_user(user_id):
-        from .models import Token
+        from .oauth.models import Token
         return Token.query.get(user_id)
 
     app.logger.info('App created successfully.')

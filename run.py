@@ -1,5 +1,5 @@
-from app import create_app, db
-from config import Config
+from . import create_app, db
+from .config import Config
 from flask_migrate import Migrate, migrate, upgrade, init
 
 app = create_app(Config)

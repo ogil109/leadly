@@ -4,7 +4,7 @@ import requests
 from flask import current_app
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
-from . import db, scheduler
+from .. import db, scheduler
 
 
 # Token model to store OAuth tokens (users) and handle token refresh via APScheduler

@@ -4,7 +4,7 @@ from flask import Flask, jsonify, redirect, url_for, request, current_app, abort
 from flask_login import current_user, logout_user
 from .models import Token, TokenRefreshJob, AuthRequest
 from .oauth import get_hubspot_auth_url, get_token_from_code
-from .import db
+from .. import db
 
 
 # Create a Blueprint object
@@ -51,6 +51,7 @@ def oauth_callback():
         fetched_state = request.args.get('state')
         current_app.logger.info(f"Received state: {fetched_state}")
         stored_state = AuthRequest.get_by_state_uuid(fetched_state)
+        current_app.logger.info(f"Stored state: {stored_state.state_uuid}")
 
         # State comparison check (no need to check vs fetched_state, given prior initialization)
         current_app.logger.info('Checking state arg to prevent CSFR')
@@ -58,7 +59,7 @@ def oauth_callback():
             current_app.logger.error("State mismatch error in oauth_callback function")
             abort(500, description="State mismatch error")
 
-        current_app.logger.info('State match')
+        current_app.logger.info('State match confirmed')
         code = request.args.get('code')
         current_app.logger.info(f"Received code: {code}")
 
