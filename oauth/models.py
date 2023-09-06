@@ -9,16 +9,27 @@ from .. import db, scheduler
 
 # Token model to store OAuth tokens (users) and handle token refresh via APScheduler
 class Token(db.Model):
-    user_id = db.Column(db.String(36), primary_key=True, unique=True) # Will be assigned from AuthRequest
+    request_id = db.Column(db.String(36), primary_key=True, unique=True)
+    state_uuid = db.Column(db.String(36), unique=True, nullable=False)
     access_token = db.Column(db.String(300))
     refresh_token = db.Column(db.String(300))
     token_type = db.Column(db.String(32))
     expires_in = db.Column(db.Integer)
     expires_at = db.Column(db.DateTime)
 
+    # Token ID and state UUID init
+    def __init__(self, *args, **kwargs):
+        super(Token, self).__init__(*args, **kwargs)
+        self.request_id = self.generate_uuid()
+        self.state_uuid = self.generate_uuid()
+
+    @staticmethod
+    def generate_uuid():
+        return str(uuid.uuid4())
+
     # Flask-Login user required properties
     def get_id(self):
-        return self.user_id
+        return self.request_id
 
     @property
     def is_authenticated(self):
@@ -32,12 +43,13 @@ class Token(db.Model):
     def is_anonymous(self):
         return False
 
+    # Refresh logic
     @classmethod
-    def refresh(cls, user_id):
-        current_app.logger.info(f'Starting token refresh for user ID: {user_id}')
-        token = cls.query.get(user_id)
+    def refresh(cls, request_id):
+        current_app.logger.info(f'Starting token refresh for request: {request_id}')
+        token = cls.query.get(request_id)
         if not token:
-            current_app.logger.error(f"No Token found for user ID: {user_id}")
+            current_app.logger.error(f"No Token found for request: {request_id}")
             return
         if token._is_refresh_needed():
             refreshed_token_data = token._fetch_refreshed_token()
@@ -45,7 +57,7 @@ class Token(db.Model):
                 token._update_token_details(refreshed_token_data)
             else:
                 current_app.logger.error("Failed to refresh the token. No data received.")
-        current_app.logger.info(f'Finished token refresh for user ID: {user_id}')
+        current_app.logger.info(f'Finished token refresh for request: {request_id}')
 
     # Check if a refresh is needed based on the expiration time
     def _is_refresh_needed(self):
@@ -90,30 +102,42 @@ class Token(db.Model):
         except Exception as e:
             current_app.logger.error(f"Error in _update_token_details when committing to the database: {e}")
             db.session.rollback()
+        
+        current_app.logger.info(f"Token details updated for request: {self.request_id}")
 
-    # Removing token by user_id to logout
+    # Removing token by request_id to logout
     @classmethod
-    def remove_by_user_id(cls, user_id):
-        instance = cls.query.get(user_id)
+    def remove_by_request_id(cls, request_id):
+        instance = cls.query.get(request_id)
         if not instance:
-            current_app.logger.error(f"No Token found for user ID: {user_id}")
+            current_app.logger.error(f"No Token found for token ID: {request_id}")
             return False
         
         try:
             db.session.delete(instance)
             db.session.commit()
-            current_app.logger.info(f"Successfully removed token for user ID: {user_id}")
+            current_app.logger.info(f"Successfully removed token for token ID: {request_id}")
             return True
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"Error in remove_by_user_id for Token: {e}")
+            current_app.logger.error(f"Error in remove_by_request_id for Token: {e}")
             return False
+
+    # Class method to avoid database logic
+    @classmethod
+    def get_by_request(cls, request_id):
+        return cls.query.filter_by(request_id=request_id).first()
+
+    # Class method to avoid database logic
+    @classmethod
+    def get_by_state(cls, state):
+        return cls.query.filter_by(state_uuid=state).first()
 
 
 # Model to manage scheduled jobs for token refresh
 class TokenRefreshJob(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    token = db.Column(db.String(36), db.ForeignKey('token.user_id'), unique=True)
+    token_request_id = db.Column(db.String(36), db.ForeignKey('token.request_id'), unique=True)
     job_id = db.Column(db.String(36))
     next_run_time = db.Column(db.DateTime)
 
@@ -124,50 +148,55 @@ class TokenRefreshJob(db.Model):
 
     # Class method to avoid database logic in instantiation
     @classmethod
-    def get_by_token(cls, token):
-        return cls.query.filter_by(token=token).first()
+    def get_by_request(cls, request):
+        return cls.query.filter_by(token_request_id=request).first()
 
     # Class method to fetch seconds until next refresh for a filtered token
     @classmethod
-    def seconds_until_refresh(cls, token_id):
-        current_app.logger.info(f'Calculating seconds until next refresh for token: {token_id}')
-        refresh_job = cls.get_by_token(token_id)
+    def seconds_until_refresh(cls, request_id):
+        current_app.logger.info(f'Calculating seconds until next refresh for request: {request_id}')
+        refresh_job = cls.get_by_request(request_id)
         
         if not refresh_job or not refresh_job.next_run_time:
-            current_app.logger.error(f"Job or next run time not found for token: {token_id}")
+            current_app.logger.error(f"Job or next run time not found for request: {request_id}")
             return None
 
         # Calculate the time difference using the stored next_run_time
         time_left = refresh_job.next_run_time - datetime.utcnow()
         return time_left.total_seconds()
 
-    def create_job(self, token):
-        current_app.logger.info(f'Starting refresh job creation for token: {token.user_id}')
-        try:
-            self.job_id = TokenRefreshJob.generate_uuid()
+    # Main scheduling function
+    @classmethod
+    def create_or_reschedule_job(cls, token):
+        request_id = token.request_id
+        refresh_job = cls.get_by_request(request_id)
+        if not refresh_job:
+            refresh_job = cls(token_request_id=request_id)
+            db.session.add(refresh_job)
+            db.session.flush()
+            refresh_job._create_job(token)
+        else:
+            refresh_job._reschedule_job(token.expires_at - timedelta(minutes=5))
 
-            # Scheduling next run according to expiry time and adding a 5 minute buffer
-            self.next_run_time = token.expires_at - timedelta(minutes=5)
-            job = current_app.scheduler.add_job(id=self.job_id, func=token.refresh, trigger="date", run_date=self.next_run_time, args=[token.user_id])
+    def _create_job(self, token):
+        self.job_id = TokenRefreshJob.generate_uuid()
+        self.next_run_time = token.expires_at - timedelta(minutes=5)
+        job = current_app.scheduler.add_job(id=self.job_id, func=token.refresh, trigger="date", run_date=self.next_run_time, args=[token.request_id])
+        current_app.logger.info(f"Refresh job created with ID: {self.job_id} for request: {token.request_id}")
+        return job
 
-            db.session.commit()
-            current_app.logger.info(f'Job with ID {self.job_id} created successfully for token: {token.user_id}')
-            return job
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error(f"Error in create_job: {e}")
-
-    def reschedule_job(self, new_run_time):
+    def _reschedule_job(self, new_run_time):
         if self.job_id:
             current_app.scheduler.reschedule_job(self.job_id, trigger="date", run_date=new_run_time)
+            current_app.logger.info(f"Refresh job rescheduled with ID: {self.job_id} for new run time: {new_run_time}")
 
-    # Removing token refresh job by user_id to logout
+    # Removing token refresh job by request_id to logout
     @classmethod
-    def remove_by_token(cls, user_id):
-        current_app.logger.info(f'Removing job for user ID: {user_id}')
-        instance = cls.get_by_token(user_id)
+    def remove_by_token(cls, request_id):
+        current_app.logger.info(f'Removing job for request: {request_id}')
+        instance = cls.get_by_token(request_id)
         if not instance:
-            current_app.logger.error(f"No TokenRefreshJob object found for user ID: {user_id}")
+            current_app.logger.error(f"No TokenRefreshJob object found for request: {request_id}")
             return False
         
         try:
@@ -178,27 +207,5 @@ class TokenRefreshJob(db.Model):
             return True
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"Error in remove_by_user_id for TokenRefreshJob: {e}")
+            current_app.logger.error(f"Error in remove_by_request_id for TokenRefreshJob: {e}")
             return False
-
-
-# Model to store Auth Request UUID and create User ID to handle it to Token
-class AuthRequest(db.Model):
-    state_uuid = db.Column(db.String(36), unique=True, nullable=False, primary_key=True)
-    user_id = db.Column(db.String(36), unique=True, nullable=False)
-
-    # Static method to generate UUID
-    @staticmethod
-    def generate_uuid():
-        return str(uuid.uuid4())
-
-    # Automatic UUID generation and assignation on every instance
-    def __init__(self, *args, **kwargs):
-        super(AuthRequest, self).__init__(*args, **kwargs)
-        self.state_uuid = self.generate_uuid()
-        self.user_id = self.generate_uuid()
-
-    # Class method to avoid database logic in instantiation
-    @classmethod
-    def get_by_state_uuid(cls, state_uuid):
-        return cls.query.get(state_uuid)
