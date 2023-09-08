@@ -1,4 +1,5 @@
 import os
+import redis
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 
 
@@ -10,6 +11,14 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SESSION_COOKIE_SECURE = True  # Set to True if using HTTPS
     SESSION_COOKIE_SAMESITE = 'Lax'
+
+    # Flask-Session configurations
+    SESSION_TYPE = 'redis'
+    SESSION_PERMANENT = False
+    SESSION_USE_SIGNER = True
+    SESSION_KEY_PREFIX = 'session:'
+    SESSION_REDIS_URL = os.environ.get('SESSION_REDIS_URL')
+    SESSION_REDIS = redis.StrictRedis.from_url(SESSION_REDIS_URL)
 
     # HubSpot configurations
     HUBSPOT_AUTH_URL = 'https://app-eu1.hubspot.com/oauth/authorize'

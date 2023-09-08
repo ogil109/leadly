@@ -37,7 +37,8 @@ class Token(db.Model):
 
     @property
     def is_active(self):
-        return datetime.utcnow() < self.expires_at
+        # Will take into account buffering
+        return datetime.utcnow() < self.expires_at - timedelta(minutes=5)
 
     @property
     def is_anonymous(self):
@@ -107,7 +108,7 @@ class Token(db.Model):
 
     # Removing token by request_id to logout
     @classmethod
-    def remove_by_request_id(cls, request_id):
+    def remove_by_request(cls, request_id):
         instance = cls.query.get(request_id)
         if not instance:
             current_app.logger.error(f"No Token found for token ID: {request_id}")
@@ -192,9 +193,9 @@ class TokenRefreshJob(db.Model):
 
     # Removing token refresh job by request_id to logout
     @classmethod
-    def remove_by_token(cls, request_id):
+    def remove_by_request(cls, request_id):
         current_app.logger.info(f'Removing job for request: {request_id}')
-        instance = cls.get_by_token(request_id)
+        instance = cls.get_by_request(request_id)
         if not instance:
             current_app.logger.error(f"No TokenRefreshJob object found for request: {request_id}")
             return False

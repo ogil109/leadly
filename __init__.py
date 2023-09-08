@@ -4,6 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_apscheduler import APScheduler
 from flask_migrate import Migrate
+from flask_session import Session
 import logging
 from logging.handlers import RotatingFileHandler
 
@@ -13,6 +14,7 @@ db = SQLAlchemy()
 login_manager = LoginManager()
 scheduler = APScheduler()
 migrate = Migrate()
+session = Session()
 
 def create_tables(app):
     from .oauth.models import Token, TokenRefreshJob
@@ -29,6 +31,7 @@ def create_app(config_class):
     login_manager.init_app(app)
     scheduler.init_app(app)
     migrate.init_app(app, db)
+    session.init_app(app)
 
     # Create db tables if empty
     create_tables(app)

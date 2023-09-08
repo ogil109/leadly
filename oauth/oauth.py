@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 import requests
-from flask import current_app, abort
+from flask import current_app, abort, session
 from flask_login import login_user
 from .models import Token, TokenRefreshJob
 from .. import db
@@ -27,7 +27,7 @@ def get_hubspot_auth_url():
 
         url = f"{current_app.config['HUBSPOT_AUTH_URL']}?client_id={params['client_id']}&redirect_uri={params['redirect_uri']}&scope={params['scope']}&state={params['state']}"
         current_app.logger.info(f'Generated HubSpot auth URL: {url}')
-        return url
+        return url, new_request.request_id
     except Exception as e:
         current_app.logger.error(f"Error in get_hubspot_auth_url function: {e}")
         abort(500, description="Error building OAuth client URL")
