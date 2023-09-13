@@ -9,15 +9,14 @@ from .. import db
 # Function to create HubSpot auth URL
 def get_hubspot_auth_url():
     current_app.logger.info("Generating HubSpot auth URL...")
-    # Clearing session to avoid conflicts before creating new request
-    session.clear()
 
     try:
         try:
-            # Creating new request will init a new request_id and a state_uuid
+            # Creating new request will init a new request_id and state_uuid
             new_request = Token()
             db.session.add(new_request)
             db.session.commit()
+
             current_app.logger.info(
                 f"Created new auth request with request_id: {new_request.request_id} and state_uuid: {new_request.state_uuid}"
             )
@@ -45,7 +44,7 @@ def get_hubspot_auth_url():
 # Function to get token from authorization code
 def get_token_from_code(code, request_id):
     current_app.logger.info(
-        f"Fetching token for code: {code} and request: {request_id}"
+        f"Fetching token with request: {request_id} using code: {code}"
     )
 
     try:
@@ -81,14 +80,16 @@ def get_token_from_code(code, request_id):
 # Function to save the fetched token to database and create and store corresponding refresh job
 def save_token(request_id, response_json):
     try:
+        current_app.logger.info(f"Updated session data: {session}")
         current_app.logger.info(f"Saving token details for request: {request_id}")
 
         # Inserting token details from json response
         token = Token.get_by_request(request_id)
         token.update_token_details(response_json)
 
-        # Flask user login after adding token to database
+        # Flask user login
         login_user(token)
+        current_app.logger.info(f"Session data: {session}")
         current_app.logger.info(f"Flask successfully logged in request: {request_id}")
 
         # Schedule automatic refresh job for this token

@@ -36,6 +36,11 @@ def index():
         # If the user is authenticated and the token is active, return the index
         if current_user.is_authenticated:
             if current_user.is_active:
+                # Check if the active token has a scheduled refresh job. If not, log out user
+                job = TokenRefreshJob.get_by_request(current_user.request_id)
+                if not job or job.next_run_time >= datetime.utcnow():
+                    return redirect(url_for("main.logout"))
+
                 seconds_left = TokenRefreshJob.seconds_until_refresh(
                     current_user.request_id
                 )
@@ -45,10 +50,12 @@ def index():
                     seconds_until_refresh=int(seconds_left) if seconds_left else None,
                 )
             else:
-                current_app.logger.info("Token is not active, redirecting to login...")
-                return redirect(url_for("main.login"))
+                current_app.logger.info(
+                    "Token is not active, redirecting user to log out before requesting another token..."
+                )
+                return redirect(url_for("main.logout"))
         else:
-            current_app.logger.info("User not logged in, redirecting...")
+            current_app.logger.info("User not logged in, redirecting to log in...")
             return redirect(url_for("main.login"))
     except Exception as e:
         current_app.logger.error(f"Error in index function: {e}")
@@ -59,44 +66,53 @@ def index():
 def login():
     current_app.logger.info("Accessing login route...")
     try:
-        # If the user is already authenticated and the token is active (and user entered route by accident), redirect to the index
+        # Check if user entered route by accident and is already active
         if current_user.is_authenticated and current_user.is_active:
             return redirect(url_for("main.index"))
 
-        # Check if there's an existing session in the browser
+        # Check if there's an active session within time (in case of app restart)
         if "request_id" in session:
-            current_app.logger.info("Session already exists")
+            current_app.logger.info(f"Session already exists: {session}")
             stored_token = Token.get_by_request(session["request_id"])
 
-            # Clear session data and log again if token wasn't found or if it's out of buffer time
-            if (
-                not stored_token
-                or stored_token.expires_at - timedelta(minutes=5) <= datetime.utcnow()
-            ):
-                # Clear session data
-                session.clear()
-
+            # Clear session data and log again if associated token can't be found
+            if not stored_token:
                 current_app.logger.info(
-                    "Token wasn't found or it's out of buffer time. Session was cleared. Redirecting to login..."
+                    f"Couldn't find stored token for request: {session['request_id']}"
                 )
-                return redirect(url_for("main.login"))
+                session.clear()
+                current_app.logger.info(
+                    "Session was cleared, initiating new request..."
+                )
 
-            # If the token is still active and has a scheduled refresh job, log the user in and redirect to the index
-            else:
-                if not TokenRefreshJob.get_by_request(stored_token.request_id):
-                    # Delete token and redirect to login after clearing session data if no refresh job is found
-                    current_app.logger.info("Token has no refresh job, deleting")
-                    Token.remove_by_request(stored_token.request_id)
-                    session.clear()
-                    return redirect(url_for("main.login"))
+            # Logout user if stored token is expired
+            """
+            Conditions needed:
+                - App restarted
+                - User has old session['request_id']
+                - User has a token tied to old session['request_id']
+                - The token is expired and can't be refreshed
+                - User entered login route directly (avoiding main route previous check)
+            """
+            if stored_token and not stored_token.is_active:
+                current_app.logger.info("Associated token expired, logging out...")
+                return redirect(url_for("main.logout"))
 
-                login_user(stored_token)
-                current_app.logger.info("User logged in with session data")
-                return redirect(url_for("main.index"))
+            # If the token is still active and has a scheduled refresh job in the future, log the user in
+            if stored_token and stored_token.is_active:
+                job = TokenRefreshJob.get_by_request(stored_token.request_id)
+                if job and job.next_run_time > datetime.utcnow():
+                    login_user(stored_token)
+                    current_app.logger.info("User relogged with session data")
+                    return redirect(url_for("main.index"))
+                else:
+                    # If no refresh job in the future, logout and generate new request
+                    return redirect(url_for("main.logout"))
 
         # Create new request if there's no existing session and mark session with request_id
         auth_url, request_id = get_hubspot_auth_url()
         session["request_id"] = request_id
+        current_app.logger.info(f"Updated session data: {session}")
         current_app.logger.info("Redirecting to HubSpot auth URL...")
         return redirect(auth_url)
 
@@ -107,6 +123,7 @@ def login():
 
 @main.route("/oauth-callback/")
 def oauth_callback():
+    current_app.logger.info(f"Session data: {session}")
     current_app.logger.info("Accessing oauth-callback route...")
     current_app.logger.info(f"Full callback URL: {request.url}")
     try:
@@ -121,7 +138,9 @@ def oauth_callback():
             )
             abort(500, description="Token not found")
 
-        current_app.logger.info(f"Stored associated token found")
+        current_app.logger.info(
+            f"Stored associated token found with state: {stored_token.state_uuid}"
+        )
         current_app.logger.info("State match confirmed")
 
         code = request.args.get("code")
@@ -143,17 +162,45 @@ def oauth_callback():
 @main.route("/logout")
 def logout():
     try:
+        """
+        Session request id is used to erase TokenRefreshJob and Token in
+        case user is not logged in but has an expired token tied to an
+        old session['request_id']
+        """
         current_app.logger.info(
-            f"Logging out user with request_id: {current_user.request_id}"
+            f"Logging out user with request_id: {session['request_id']}"
         )
 
-        if not TokenRefreshJob.remove_by_request(current_user.request_id):
-            abort(500, description="Failed to remove TokenRefreshJob")
+        # Remove associated refresh job, if any
+        """
+        Checking for existence of refresh job to avoid error while removing it in case of:
+            - App restarted
+            - User has old session['request_id']
+            - User has a token tied to old session['request_id']
+            - The token is still active
+            - The token does not have associated refresh job
+            - Login route redirects to logout route but no refresh job can be deleted
+        """
 
-        if not Token.remove_by_request(current_user.request_id):
-            abort(500, description="Failed to remove Token")
+        if TokenRefreshJob.get_by_request(session["request_id"]):
+            if not TokenRefreshJob.remove_by_request(session["request_id"]):
+                current_app.logger.error(
+                    f"Failed to remove token refresh job associated to request: {session['request_id']}"
+                )
+        else:
+            current_app.logger.info(
+                f"No token refresh job associated to request: {session['request_id']}"
+            )
 
-        logout_user()
+        # Remove token
+        if not Token.remove_by_request(session["request_id"]):
+            current_app.logger.error(
+                f"Failed to remove token with request id: {session['request_id']}"
+            )
+
+        # Flask logout (if user is logged in)
+        if current_user.is_authenticated:
+            logout_user()
 
         # Clear session data
         session.clear()

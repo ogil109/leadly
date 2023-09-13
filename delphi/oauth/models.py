@@ -33,10 +33,16 @@ class Token(db.Model):
 
     @property
     def is_authenticated(self):
-        return self.access_token and datetime.utcnow() < self.expires_at
+        # Ensure expires_at is not None and there's an access token
+        if not self.expires_at or not self.access_token:
+            return False
+        return datetime.utcnow() < self.expires_at
 
     @property
     def is_active(self):
+        # Ensure expires_at is not None
+        if not self.expires_at:
+            return False
         # Will take into account buffering
         return datetime.utcnow() < self.expires_at - timedelta(minutes=5)
 
@@ -123,14 +129,14 @@ class Token(db.Model):
     def remove_by_request(cls, request_id):
         instance = cls.query.get(request_id)
         if not instance:
-            current_app.logger.error(f"No Token found for token ID: {request_id}")
+            current_app.logger.error(f"No Token found for request ID: {request_id}")
             return False
 
         try:
             db.session.delete(instance)
             db.session.commit()
             current_app.logger.info(
-                f"Successfully removed token for token ID: {request_id}"
+                f"Successfully removed token for request ID: {request_id}"
             )
             return True
         except Exception as e:
@@ -163,7 +169,7 @@ class TokenRefreshJob(db.Model):
     def generate_uuid():
         return str(uuid.uuid4())
 
-    # Class method to avoid database logic, it will return the first job found for a request_id
+    # Class method to avoid database logic, it will return the first job object found for a request_id
     @classmethod
     def get_by_request(cls, request_id):
         return cls.query.filter_by(token_request_id=request_id).first()
@@ -186,13 +192,12 @@ class TokenRefreshJob(db.Model):
         time_left = refresh_job.next_run_time - datetime.utcnow()
         return time_left.total_seconds()
 
-    # Main scheduling function
+    # Main scheduling function. Works handling the entire token object
     @classmethod
     def create_or_reschedule_job(cls, token):
-        request_id = token.request_id
-        refresh_job = cls.get_by_request(request_id)
+        refresh_job = cls.get_by_request(token.request_id)
 
-        # If no job exists, instantiate class via _create_job class method. If job exists, reschedule it
+        # If no job exists, instantiate class via _create_job. If job exists, reschedule it
         if not refresh_job:
             cls._create_job(token)
         else:
