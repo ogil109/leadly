@@ -1,7 +1,0 @@
-flask
-flask_sqlalchemy
-flask_login
-flask_apscheduler
-flask_migrate
-pymysql
-requests

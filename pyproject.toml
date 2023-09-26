@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "delphi"
+version = "0.1.0"
+description = "HubSpot data analytics"
+authors = ["Oscar Gil <hello@oscargilbalaguer.com>"]
+license = "GPL 3.0"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+flask = "^2.3.3"
+flask-sqlalchemy = "^3.1.1"
+flask-login = "^0.6.2"
+flask-apscheduler = "^1.13.0"
+flask-migrate = "^4.0.5"
+pymysql = "^1.1.0"
+requests = "^2.31.0"
+flask-session = "^0.5.0"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.9.1"
+pylint = "^2.17.5"
+isort = "^5.12.0"
+pre-commit = "^3.4.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
