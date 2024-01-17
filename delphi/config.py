@@ -1,7 +1,10 @@
 import os
-import redis
-from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from datetime import timedelta
+
+from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+from pytz import utc
+
+from delphi import db
 
 
 class Config:
@@ -14,13 +17,12 @@ class Config:
     SESSION_COOKIE_SAMESITE = "Lax"
 
     # Flask-Session configurations
-    SESSION_TYPE = "redis"
+    SESSION_TYPE = "sqlalchemy"
     SESSION_PERMANENT = True
     PERMANENT_SESSION_LIFETIME = timedelta(minutes=30)
     SESSION_USE_SIGNER = True
-    SESSION_KEY_PREFIX = "session:"
-    SESSION_REDIS_URL = os.environ.get("SESSION_REDIS_URL")
-    SESSION_REDIS = redis.StrictRedis.from_url(SESSION_REDIS_URL)
+    SESSION_SQLALCHEMY = db
+    SESSION_SQLALCHEMY_TABLE = "flask_session"
 
     # HubSpot configurations
     HUBSPOT_AUTH_URL = "https://app-eu1.hubspot.com/oauth/authorize"
@@ -30,6 +32,7 @@ class Config:
     HUBSPOT_REDIRECT_URI = os.environ.get("HUBSPOT_REDIRECT_URI")
     HUBSPOT_SCOPES = "crm.objects.contacts.read%20crm.objects.companies.read%20crm.objects.companies.write%20crm.objects.deals.read"
 
-    # APScheduler config
+    # Flask-APScheduler config (native APScheduler config options in dict form)
     SCHEDULER_API_ENABLED = True
     SCHEDULER_JOBSTORES = {"default": SQLAlchemyJobStore(url=SQLALCHEMY_DATABASE_URI)}
+    SCHEDULER_TIMEZONE = {"timezone": utc}

@@ -1,6 +1,6 @@
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0  # Use the latest version
+    rev: v4.5.0  # Use the latest version
     hooks:
     -   id: trailing-whitespace
     -   id: end-of-file-fixer
@@ -8,16 +8,13 @@ repos:
     -   id: check-added-large-files
 
 -   repo: https://github.com/psf/black
-    rev: 23.9.1  # Use the version that matches the one in your pyproject.toml
+    rev: 23.12.1  # Use the version that matches the one in your pyproject.toml
     hooks:
     -   id: black
+        args: ["--line-length", "100"]
 
 -   repo: https://github.com/pre-commit/mirrors-isort
     rev: v5.10.1  # Use the version that matches the one in your pyproject.toml
     hooks:
     -   id: isort
-
--   repo: https://github.com/pycqa/pylint
-    rev: v3.0.0a7  # Use the version that matches the one in your pyproject.toml
-    hooks:
-    -   id: pylint
+        args: ["--profile", "black", "--filter-files"]
