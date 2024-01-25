@@ -138,6 +138,11 @@ class Token(db.Model):
 
     # Update token in database (either after refreshing or the first time fetched) with JSON data
     def update_token_details(self, token_data) -> None:
+        current_app.logger.info(
+            f"Token details about to be saved/updated for request: {self.request_id}"
+        )
+
+        # Update token details
         self.access_token = token_data["access_token"]
         self.refresh_token = token_data["refresh_token"]
         self.expires_in = token_data["expires_in"]
@@ -302,6 +307,7 @@ class TokenRefreshJob(db.Model):
             )
 
             db.session.add(refresh_job)
+            db.session.commit()
 
             current_app.logger.info(
                 f"Creating job with ID: {refresh_job.job_id} for request: {token.request_id}"
@@ -372,11 +378,3 @@ class TokenRefreshJob(db.Model):
             current_app.logger.error(f"Integrity Error in remove_by_request: {e}")
             db.session.rollback()
             return False
-
-
-# Flask session model (used externally by Flask-Session)
-class FlaskSession(db.Model):
-    __tablename__ = "flask_session"
-    session_id = db.Column(db.String(255), primary_key=True)
-    data = db.Column(db.PickleType)
-    expiry = db.Column(db.DateTime)

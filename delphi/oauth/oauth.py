@@ -16,7 +16,7 @@ Functions:
 from typing import Any
 
 import requests
-from flask import abort, current_app, session
+from flask import abort, current_app
 from flask_login import login_user
 
 from delphi import db
@@ -63,7 +63,7 @@ def get_hubspot_auth_url() -> tuple[str, Any | str] | None:
     return url, new_request.request_id
 
 
-# Function to get token from handed authorization code
+# Function to get token data from handed authorization code
 def get_token_from_code(code, request_id) -> None:
     current_app.logger.info(f"Fetching token with request: {request_id} using code: {code}")
 
@@ -87,7 +87,7 @@ def get_token_from_code(code, request_id) -> None:
             current_app.logger.error(f"Error in get_token_from_code function: {response_json}")
             abort(500, description="Couldn't fetch token from HubSpot")
 
-        # Save token to database
+        # Save token to database updating empty Token instance
         save_token(request_id, response_json)
 
     except Exception as e:
@@ -96,11 +96,11 @@ def get_token_from_code(code, request_id) -> None:
         abort(500, description="Error saving token")
 
 
-# Function to save the fetched token to database and create and store corresponding refresh job
+# Function to save the fetched token data and create and store corresponding refresh job
 def save_token(request_id, response_json) -> None:
     """
-    - Saves the token details for a given request updating previously created empty Token instance
-    - Logs user in
+    - Saves the token details for a given request updating previously created empty Token instance.
+    - Logs user in.
     - Schedules an APScheduler job for automatic token refresh.
 
     Parameters:
@@ -114,7 +114,6 @@ def save_token(request_id, response_json) -> None:
         HTTPException: If there is an error saving the token.
     """
     try:
-        current_app.logger.info(f"Updated session data: {session}")
         current_app.logger.info(f"Saving token details for request: {request_id}")
 
         # Inserting token details from JSON response into previously created Token instance
@@ -124,7 +123,6 @@ def save_token(request_id, response_json) -> None:
         # Flask user login
         login_user(token)
 
-        current_app.logger.info(f"Session data: {session}")
         current_app.logger.info(f"Flask successfully logged in request: {request_id}")
 
         # Schedule automatic refresh job for this token

@@ -5,13 +5,11 @@ from logging.handlers import RotatingFileHandler
 from flask import Flask
 from flask_apscheduler import APScheduler
 from flask_login import LoginManager
-from flask_session import Session
 from flask_sqlalchemy import SQLAlchemy
 
 # Instantiate extensions with default configuration
 scheduler = APScheduler()
 login_manager = LoginManager()
-session = Session()
 db = SQLAlchemy()
 
 
@@ -26,7 +24,6 @@ def create_app(config_class) -> Flask:
     db.init_app(app)
     scheduler.init_app(app)
     login_manager.init_app(app)
-    session.init_app(app)
 
     # Init logger
     logger_init(app)

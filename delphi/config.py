@@ -1,10 +1,7 @@
 import os
-from datetime import timedelta
 
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from pytz import utc
-
-from delphi import db
 
 
 class Config:
@@ -15,14 +12,6 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SESSION_COOKIE_SECURE = True  # Set to True if using HTTPS
     SESSION_COOKIE_SAMESITE = "Lax"
-
-    # Flask-Session configurations
-    SESSION_TYPE = "sqlalchemy"
-    SESSION_PERMANENT = True
-    PERMANENT_SESSION_LIFETIME = timedelta(minutes=30)
-    SESSION_USE_SIGNER = True
-    SESSION_SQLALCHEMY = db
-    SESSION_SQLALCHEMY_TABLE = "flask_session"
 
     # HubSpot configurations
     HUBSPOT_AUTH_URL = "https://app-eu1.hubspot.com/oauth/authorize"
@@ -35,4 +24,4 @@ class Config:
     # Flask-APScheduler config (native APScheduler config options in dict form)
     SCHEDULER_API_ENABLED = True
     SCHEDULER_JOBSTORES = {"default": SQLAlchemyJobStore(url=SQLALCHEMY_DATABASE_URI)}
-    SCHEDULER_TIMEZONE = {"timezone": utc}
+    SCHEDULER_TIMEZONE = utc
