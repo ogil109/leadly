@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 
 import requests
@@ -69,7 +69,7 @@ class Token(db.Model):
         if not self.expires_at or not self.access_token:
             return False
         # Will return true if expires_at is in the future
-        return datetime.utcnow() < self.expires_at
+        return datetime.now(timezone.utc) < self.expires_at
 
     # Required Flask-Login method, True if the Token expires in 5 minutes or more
     @property
@@ -78,7 +78,7 @@ class Token(db.Model):
         if not self.expires_at or not self.access_token:
             return False
         # Will return true if expires_at is in the future with a 5 minute buffer
-        return datetime.utcnow() < self.expires_at - timedelta(minutes=5)
+        return datetime.now(timezone.utc) < self.expires_at - timedelta(minutes=5)
 
     # Required Flask-Login method
     @property
@@ -106,7 +106,7 @@ class Token(db.Model):
 
     # Check if a refresh is needed, returning true if current time is inside buffering window
     def _is_refresh_needed(self) -> bool:
-        return datetime.utcnow() >= self.expires_at - timedelta(minutes=5)
+        return datetime.now(timezone.utc) >= self.expires_at - timedelta(minutes=5)
 
     # Fetch the refreshed token from HubSpot and return a JSON object with the data
     def _fetch_refreshed_token(self) -> Optional[Dict[str, Any]]:
@@ -146,7 +146,7 @@ class Token(db.Model):
         self.access_token = token_data["access_token"]
         self.refresh_token = token_data["refresh_token"]
         self.expires_in = token_data["expires_in"]
-        self.expires_at = datetime.utcnow() + timedelta(seconds=token_data["expires_in"])
+        self.expires_at = datetime.now(timezone.utc) + timedelta(seconds=token_data["expires_in"])
 
         # Commit the changes to the database
         try:
@@ -246,7 +246,7 @@ class TokenRefreshJob(db.Model):
                 raise ValueError("Next run time not found")
 
             # Calculate the time difference using the stored next_run_time
-            time_left = self.next_run_time - datetime.utcnow()
+            time_left = self.next_run_time - datetime.now(timezone.utc)
             return time_left.total_seconds()
 
         except ValueError as e:

@@ -160,5 +160,7 @@ cython_debug/
 #.idea/
 
 # App specifics
-delphi/logs/
-delphi/*.db
+leadly/logs/
+leadly/*.db
+
+.DS_Store
