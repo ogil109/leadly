@@ -7,7 +7,7 @@ from flask import current_app
 from pymysql import IntegrityError, OperationalError
 from requests.exceptions import Timeout
 
-from delphi import db, scheduler
+from leadly import db, scheduler
 
 
 # Generate UUID function

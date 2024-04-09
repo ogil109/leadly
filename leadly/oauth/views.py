@@ -2,9 +2,9 @@ import requests
 from flask import Blueprint, abort, current_app, jsonify, redirect, request, url_for
 from flask_login import current_user, logout_user
 
-from delphi import db
-from delphi.oauth.models import Token, TokenRefreshJob
-from delphi.oauth.oauth import get_hubspot_auth_url, get_token_from_code
+from leadly import db
+from leadly.oauth.models import Token, TokenRefreshJob
+from leadly.oauth.oauth import get_hubspot_auth_url, get_token_from_code
 
 # Create a Blueprint object
 oauth = Blueprint("oauth", __name__)

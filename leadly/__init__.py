@@ -32,14 +32,14 @@ def create_app(config_class) -> Flask:
     create_tables(app)
 
     # Registering blueprints
-    from delphi.oauth.views import oauth
+    from leadly.oauth.views import oauth
 
     app.register_blueprint(oauth)
 
     # Login manager setup
     @login_manager.user_loader
     def load_user(request_id):
-        from delphi.oauth.models import Token
+        from leadly.oauth.models import Token
 
         return Token.get_by_request(request_id)
 
@@ -59,7 +59,7 @@ def create_tables(app) -> None:
     - Call db SQLAlchemy's instance to scan for imported models with SQLAlchemy superclasses.
     - Create the tables if they don't exist, using models' defined structure.
     """
-    from delphi.oauth.models import Token, TokenRefreshJob
+    from leadly.oauth.models import Token, TokenRefreshJob
 
     with app.app_context():
         db.create_all()

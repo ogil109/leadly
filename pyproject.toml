@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "delphi"
+name = "leadly"
 version = "0.1.0"
-description = "HubSpot data analytics"
+description = "HubSpot predictive data analytics tool"
 authors = ["Oscar Gil <hello@oscargilbalaguer.com>"]
 license = "GPL 3.0"
 readme = "README.md"

@@ -1,7 +1,7 @@
 from flask_migrate import init, migrate, upgrade
 
-from delphi import create_app
-from delphi.config import Config
+from leadly import create_app
+from leadly.config import Config
 
 app = create_app(Config)
 

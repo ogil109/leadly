@@ -19,8 +19,8 @@ import requests
 from flask import abort, current_app
 from flask_login import login_user
 
-from delphi import db
-from delphi.oauth.models import Token, TokenRefreshJob
+from leadly import db
+from leadly.oauth.models import Token, TokenRefreshJob
 
 
 # Function to create HubSpot auth URL
