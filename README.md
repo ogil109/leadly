@@ -1,7 +1,7 @@
 Summary:
 --------
 
-My Flask app integrates with HubSpot for OAuth authentication. It allows users to log in using HubSpot, fetches and stores OAuth tokens, and automatically refreshes these tokens before they expire using token refresh jobs handled by APScheduler. Logging is in place to keep track of app activities, and I manage database migrations using Flask-Migrate. All app configurations, including HubSpot details, are stored in a separate configuration file. Sensitive data is stored as environment variables.
+This Flask app integrates with HubSpot for OAuth authentication. It allows users to log in using HubSpot, fetches and stores OAuth tokens, and automatically refreshes these tokens before they expire using token refresh jobs handled by APScheduler. Logging is in place to keep track of app activities, and I manage database migrations using Flask-Migrate. All app configurations, including HubSpot details, are stored in a separate configuration file. Sensitive data is stored as environment variables.
 
 Safety:
 -------
